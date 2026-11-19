@@ -17,7 +17,7 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 private const val TAG = "AppUpdateManager"
-private const val DEFAULT_VERSION_URL = "https://raw.githubusercontent.com/santoshkurmi/antigem/standalone/version.json"
+private const val DEFAULT_VERSION_URL = "https://raw.githubusercontent.com/sk9910084/antigem/standalone/version.json"
 
 data class AppUpdateInfo(
     val versionCode: Int,
@@ -83,7 +83,7 @@ class AppUpdateManager(private val context: Context) {
             val isCritical = json.optBoolean("is_critical", false) || (BuildConfig.VERSION_CODE < minSupportedCode)
 
             // each release (tag v<version>) has the app as AntiGem-v<version>.apk (scripts/build_all_apks.sh)
-            val downloadUrl = "https://github.com/santoshkurmi/antigem/releases/download/v$remoteVersionName/AntiGem-v$remoteVersionName.apk"
+            val downloadUrl = "https://github.com/sk9910084/antigem/releases/download/v$remoteVersionName/AntiGem-v$remoteVersionName.apk"
 
             if (remoteVersionCode > BuildConfig.VERSION_CODE && downloadUrl.isNotBlank()) {
                 // Verify that the APK asset is actually published and downloadable on GitHub

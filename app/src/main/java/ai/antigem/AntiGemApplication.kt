@@ -1,19 +1,13 @@
 package ai.antigem
 
 import android.app.Application
-import android.content.Context
 import android.content.pm.PackageManager
 import android.content.pm.Signature
 import android.os.Build
-import android.widget.Toast
 import ai.antigem.data.adb.AdbConnectManager
 import ai.antigem.data.updater.PluginUpdateCheckWorker
 import ai.antigem.data.updater.UpdateCheckWorker
-import com.telemetrydeck.sdk.TelemetryDeck
-import com.telemetrydeck.sdk.TelemetryDeckSessionManagerProvider
-import com.telemetrydeck.sdk.TelemetryDeckSignalProcessor
 import java.security.MessageDigest
-import java.util.UUID
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 class AntiGemApplication : Application(), coil.ImageLoaderFactory {
@@ -61,57 +55,8 @@ class AntiGemApplication : Application(), coil.ImageLoaderFactory {
         ai.antigem.data.pc.PcConnect.init(this)
         // the cloud project new Antigravity chats start in (Remote Agents), before the first chat is created
         ai.antigem.data.agent.agy.AgyCloud.init(this)
-        // Forks build with their own key, so only official release APKs report real usage.
-        if (!BuildConfig.DEBUG && !isOfficialRelease()) {
-            Toast.makeText(
-                this,
-                "Unofficial build: analytics disabled. Developer: set your own TelemetryDeck app ID and RELEASE_CERT_SHA256 in AntiGemApplication.kt.",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
-        TelemetryDeck.start(
-            this,
-            TelemetryDeck.Builder()
-                .appID("5BE26330-812A-4293-AFB7-F5C98EAE4B82")
-                .namespace("ai.antigem")
-                .defaultUser(SimpleTelemetryId.getUniqueUserId(this))
-                .testMode(BuildConfig.DEBUG)
-                .showDebugLogs(BuildConfig.DEBUG)
-                // Only installs and updates are reported (the free plan counts every signal): nothing per app open,
-                // and no session tracking (the SDK's would send a signal per open and time how long the app is used)
-                .sendNewSessionBeganSignal(false)
-                .sessionProvider(NoSessionTracking())
-        )
-        reportInstallOrUpdate()
-    }
-
-    /**
-     * One signal per install ("App.installed") and per update ("App.updated"); TelemetryDeck adds the app version,
-     * Android version and device to it. The version last reported is remembered, so each one is sent only once.
-     */
-    private fun reportInstallOrUpdate() = runCatching {
-        val info = packageManager.getPackageInfo(packageName, 0)
-        val version = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) info.longVersionCode
-        else @Suppress("DEPRECATION") info.versionCode.toLong()
-        val prefs = getSharedPreferences("telemetry_device_prefs", MODE_PRIVATE)
-        val reported = prefs.getLong("reported_version_code", -1L)
-        if (reported == version) return@runCatching
-        // nothing reported yet: a fresh install, or an update from a version that didn't report updates
-        val installed = reported == -1L && info.firstInstallTime == info.lastUpdateTime
-        val params = if (reported == -1L) emptyMap() else mapOf("previousVersionCode" to reported.toString())
-        TelemetryDeck.signal(if (installed) "App.installed" else "App.updated", params, null, null)
-        prefs.edit().putLong("reported_version_code", version).apply()
-    }
-
-    /** Session tracking that does nothing: keeps one session ID per app start, sends no signals. */
-    private class NoSessionTracking : TelemetryDeckSessionManagerProvider {
-        private var sessionId: UUID = UUID.randomUUID()
-        override fun register(ctx: Context?, client: TelemetryDeckSignalProcessor) {}
-        override fun stop() {}
-        override fun getCurrentSessionID(): UUID = sessionId
-        override fun startNewSession(sessionID: UUID) { sessionId = sessionID }
-        override fun setFirstSessionID(sessionID: UUID) { sessionId = sessionID }
+        // Short's build: no analytics at all — installs/updates are not reported anywhere.
+        // (Upstream reported them to the original author's TelemetryDeck account.)
     }
 
     private fun isOfficialRelease(): Boolean = runCatching {
@@ -129,7 +74,7 @@ class AntiGemApplication : Application(), coil.ImageLoaderFactory {
     }.getOrDefault(false)
 
     private companion object {
-        // SHA-256 of the release.jks certificate (alias "antigem"). Public, safe to commit.
-        const val RELEASE_CERT_SHA256 = "CCF2C681063BA941641519E4EAC7F024E92880CCD06EED5070DAA9717380F315"
+        // SHA-256 of Short's release.jks certificate (alias "antigem"). Public, safe to commit.
+        const val RELEASE_CERT_SHA256 = "8A92944C67691FAB76B274C86365B8985278B90BDBD6A87FBCD7A598DB68B428"
     }
 }

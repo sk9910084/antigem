@@ -175,7 +175,7 @@ class CrashActivity : ComponentActivity() {
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
 
     private companion object {
-        const val ISSUES_URL = "https://github.com/Santoshkurmi/antigem/issues/new"
+        const val ISSUES_URL = "https://github.com/sk9910084/antigem/issues/new"
         const val MAX_URL_CHARS = 7500
     }
 }
