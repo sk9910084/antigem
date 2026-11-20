@@ -273,11 +273,15 @@ object DotsManager {
                 )
             }
             serverSession = session
-            // wait until the server answers, up to 60 s
+            // a cold start on a phone takes minutes, not seconds (big node_modules on
+            // phone storage): keep waiting while the process is alive, up to 4 minutes,
+            // and say so in the log instead of erroring at 60 s
             var up = false
             var exitedEarly = false
-            for (i in 0 until 60) {
+            var waited = 0
+            while (waited < 240) {
                 delay(1000)
+                waited++
                 if (healthCheck()) {
                     up = true
                     break
@@ -286,6 +290,7 @@ object DotsManager {
                     exitedEarly = true
                     break
                 }
+                if (waited % 30 == 0) appendLog("Still starting… (${waited}s)")
             }
             if (up) {
                 appendLog("Dots server is running on ${serverUrl()}")
