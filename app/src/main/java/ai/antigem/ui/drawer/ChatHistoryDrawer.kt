@@ -51,6 +51,7 @@ import ai.antigem.ui.components.ChatToastType
 import android.widget.Toast
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -1263,6 +1264,22 @@ fun ChatHistoryDrawer(
                     Icon(
                         imageVector = Icons.Outlined.Apps,
                         contentDescription = "Mini Apps",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(8.dp).size(20.dp)
+                    )
+                }
+
+                // Dots: the OpenDots server (persistent AI agents) running on this phone
+                val dotsContext = androidx.compose.ui.platform.LocalContext.current
+                Surface(
+                    onClick = { dotsContext.startActivity(android.content.Intent(dotsContext, ai.antigem.ui.dots.DotsActivity::class.java)) },
+                    shape = RoundedCornerShape(8.dp),
+                    color = Color.Transparent,
+                    modifier = Modifier.padding(end = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.SmartToy,
+                        contentDescription = "Dots",
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         modifier = Modifier.padding(8.dp).size(20.dp)
                     )

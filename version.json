@@ -1,8 +1,9 @@
 {
-  "version_code": 131,
-  "version_name": "2.0.0",
+  "version_code": 132,
+  "version_name": "2.1.0",
   "min_supported_version_code": 2,
   "changelog": [
+    "Added Dots: the OpenDots server (CopilotKit/OpenDots v0.1.0) runs inside AntiGem — persistent AI agents, each with its own computer, in a WebView. First run downloads the server (~150 MB) and installs the Ubuntu container and Node.js 24 if missing; chats need a CopilotKit Intelligence key (from a computer) and an OpenAI-compatible key (Xkiro prefilled)",
     "New app package ai.antigem: AntiGem now runs its own Linux environment, the separate com.termux build is no longer needed",
     "Added rootfs v2 (Nov 19) with a choice of GitHub or Hugging Face download, and a link to each page to download the zip by hand",
     "Added on-the-fly rewriting of Termux packages for AntiGem, so pkg/apt installs work under the new package name",

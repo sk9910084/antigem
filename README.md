@@ -218,6 +218,12 @@ Each one is a one-tap preset in **Settings → MCP Servers**, for every agent.
 - In-app browser for previewing local dev servers and testing web apps.
 - Desktop and mobile modes, a steady browser identity that keeps Google sign-in working, and built-in Eruda DevTools.
 
+### Dots (OpenDots server)
+- The [OpenDots](https://github.com/CopilotKit/OpenDots) server (v0.1.0, MIT) runs inside the app, in the same Ubuntu container REA uses: persistent AI agents (Dots), each with its own computer, in a WebView from the sidebar.
+- First run downloads the server bundle (~150 MB, one time) and installs the Ubuntu container and Node.js 24 if they are missing.
+- Chats need a CopilotKit Intelligence key (made on a computer: `npx copilotkit login`, then pick a project) and an OpenAI-compatible key; the model endpoint defaults to Xkiro (free).
+- The Playwright browser/computer service is not included: it cannot run on a phone. Dots browse through their connected apps and MCP tools instead.
+
 ### Connect to PC (with AntiGem for VS Code)
 Use the agents running on your PC from your phone. [AntiGem for VS Code](https://github.com/Santoshkurmi/antigem_vscode_extension) runs them on the PC, and the app becomes a second screen for the same chats.
 - **Same chats on both:** start a chat in VS Code and continue it on the phone, or the other way round. Replies stream live on both, and every agent (Antigravity, Claude Code, Codex, OpenCode) works, with its subagents, images and files.

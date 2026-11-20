@@ -337,6 +337,12 @@
             android:exported="true"
             android:theme="@style/Theme.AntiGem.MiniApp"
             android:configChanges="uiMode|orientation|screenSize|screenLayout|smallestScreenSize" />
+        <!-- Dots: the OpenDots server running on this phone -->
+        <activity
+            android:name="ai.antigem.ui.dots.DotsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.AntiGem.MiniApp"
+            android:configChanges="uiMode|orientation|screenSize|screenLayout|smallestScreenSize" />
         <!-- "Get apps": the mini apps of AntiGem's GitHub catalog -->
         <activity
             android:name="ai.antigem.ui.miniapps.MiniAppStoreActivity"
