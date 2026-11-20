@@ -84,10 +84,18 @@ private fun DotsScreen(onBack: () -> Unit) {
     val scope = rememberCoroutineScope()
     val status by DotsManager.status.collectAsState()
     val log by DotsManager.log.collectAsState()
-    val intelligenceKey by DotsManager.intelligenceKeyFlow(context).collectAsState(initial = "")
-    val openAiKey by DotsManager.openAiKeyFlow(context).collectAsState(initial = "")
-    val baseUrl by DotsManager.baseUrlFlow(context).collectAsState(initial = DotsManager.DEFAULT_BASE_URL)
-    val model by DotsManager.modelFlow(context).collectAsState(initial = DotsManager.DEFAULT_MODEL)
+    val intelligenceKeyState by DotsManager.intelligenceKeyFlow(context).collectAsState(initial = null)
+    val openAiKeyState by DotsManager.openAiKeyFlow(context).collectAsState(initial = null)
+    val baseUrlState by DotsManager.baseUrlFlow(context).collectAsState(initial = null)
+    val modelState by DotsManager.modelFlow(context).collectAsState(initial = null)
+    // the fields must not save until the stored keys have actually loaded: saving the
+    // initial empty values would wipe a key that is already stored
+    val keysLoaded = intelligenceKeyState != null && openAiKeyState != null &&
+        baseUrlState != null && modelState != null
+    val intelligenceKey = intelligenceKeyState ?: ""
+    val openAiKey = openAiKeyState ?: ""
+    val baseUrl = baseUrlState ?: DotsManager.DEFAULT_BASE_URL
+    val model = modelState ?: DotsManager.DEFAULT_MODEL
 
     var editIntelligence by remember { mutableStateOf<String?>(null) }
     var editOpenAi by remember { mutableStateOf<String?>(null) }
@@ -207,7 +215,7 @@ private fun DotsScreen(onBack: () -> Unit) {
                             editModel = null
                             Toast.makeText(context, "Keys saved.", Toast.LENGTH_SHORT).show()
                         }
-                    }) { Text("Save keys") }
+                    }, enabled = keysLoaded) { Text("Save keys") }
                 }
             }
 
@@ -233,6 +241,10 @@ private fun DotsScreen(onBack: () -> Unit) {
                             fontFamily = FontFamily.Monospace
                         )
                     }
+                    val busy = status is DotsManager.DotsStatus.Downloading ||
+                        status is DotsManager.DotsStatus.Extracting ||
+                        status is DotsManager.DotsStatus.Installing ||
+                        status is DotsManager.DotsStatus.Starting
                     Button(onClick = {
                         scope.launch {
                             DotsManager.saveKeys(
@@ -244,7 +256,7 @@ private fun DotsScreen(onBack: () -> Unit) {
                             )
                             DotsManager.start(context)
                         }
-                    }) { Text(if (running) "Restart Dots" else "Start Dots") }
+                    }, enabled = keysLoaded && !busy) { Text(if (running) "Restart Dots" else "Start Dots") }
                 }
             }
 

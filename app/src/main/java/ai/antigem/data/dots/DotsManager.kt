@@ -148,6 +148,15 @@ object DotsManager {
     }
 
     fun start(context: Context) {
+        // one start at a time: a second tap while the first is still working only ever
+        // made a second server race the first for port 4310
+        val current = _status.value
+        if (current is DotsStatus.Downloading || current is DotsStatus.Extracting ||
+            current is DotsStatus.Installing || current is DotsStatus.Starting
+        ) {
+            appendLog("Dots is already starting — please wait.")
+            return
+        }
         startJob?.cancel()
         startJob = scope.launch { startInternal(context.applicationContext) }
     }
@@ -242,12 +251,16 @@ object DotsManager {
                 appendLog("Node.js installed.")
             }
             writeEnvFile(context)
+            // a previous attempt may have left a session behind: stop it first so two
+            // servers never race for port 4310
+            val old = serverSession
+            if (old != null && !old.isExited.value) {
+                stopInternal()
+            }
+            serverSession = null
             _status.value = DotsStatus.Starting
             appendLog("Starting the Dots server…")
-            val command = containerCommand(
-                context,
-                "cd ${homeDir(context).absolutePath}/opendots && exec /root/tools/node/bin/node --env-file-if-exists=.env dist/server/server/index.js"
-            )
+            val command = serverCommand(context)
             val session = withContext(Dispatchers.Main) {
                 LocalPtySession(
                     id = "dots-server-pty",
@@ -262,25 +275,63 @@ object DotsManager {
             serverSession = session
             // wait until the server answers, up to 60 s
             var up = false
+            var exitedEarly = false
             for (i in 0 until 60) {
                 delay(1000)
                 if (healthCheck()) {
                     up = true
                     break
                 }
-                if (session.isExited.value) break
+                if (session.isExited.value) {
+                    exitedEarly = true
+                    break
+                }
             }
             if (up) {
                 appendLog("Dots server is running on ${serverUrl()}")
                 _status.value = DotsStatus.Running()
             } else {
-                _status.value = DotsStatus.Error("The Dots server did not answer on port $PORT. Check the log and try again.")
+                if (exitedEarly) appendLog("The server process exited right away. Running a quick check to see why…")
+                diagnoseFailure(context)
+                _status.value = DotsStatus.Error("The Dots server did not answer on port $PORT. The check above shows why — send a screenshot of the log.")
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.e(TAG, "Dots start failed", e)
             _status.value = DotsStatus.Error(e.message ?: "Start failed.")
+        }
+    }
+
+    /**
+     * The command that starts the server inside the container. The server reads its settings
+     * from process.env, so the .env file is sourced in bash instead of Node's
+     * --env-file-if-exists flag: older Node versions do not know that flag and exit at once
+     * ("bad option"), which looks exactly like this silent start failure.
+     */
+    private fun serverCommand(context: Context): String {
+        val home = homeDir(context).absolutePath
+        return containerCommand(
+            context,
+            "cd $home/opendots && set -a && [ -f .env ] && . ./.env; set +a; exec /root/tools/node/bin/node dist/server/server/index.js"
+        )
+    }
+
+    /**
+     * Runs the server once in the foreground (25 s) and streams what it prints into the log,
+     * so a start failure shows its real cause (bad flag, missing file, port busy) instead of
+     * only "did not answer". The run is killed after 25 s; it never stays behind.
+     */
+    private suspend fun diagnoseFailure(context: Context) {
+        appendLog("Check: starting the server once to see what it prints…")
+        try {
+            LocalEnvironmentManager.executeCommand(
+                serverCommand(context), context, timeoutSeconds = 25,
+                customEnv = mapOf("DEBIAN_FRONTEND" to "noninteractive"),
+                onOutputLine = { line -> if (line.isNotBlank()) appendLog(line.trimEnd()) }
+            )
+        } catch (e: Exception) {
+            appendLog("Check failed to run: ${e.message}")
         }
     }
 
@@ -385,12 +436,15 @@ object DotsManager {
         lines.appendLine("OWNER_ID=opendots-owner")
         lines.appendLine("DO_NOT_TRACK=1")
         lines.appendLine("COPILOTKIT_TELEMETRY_DISABLED=true")
-        prefs[KEY_INTELLIGENCE]?.takeIf { it.isNotBlank() }?.let { lines.appendLine("INTELLIGENCE_API_KEY=$it") }
-        prefs[KEY_OPENAI]?.takeIf { it.isNotBlank() }?.let { lines.appendLine("OPENAI_API_KEY=$it") }
-        lines.appendLine("OPENAI_BASE_URL=${prefs[KEY_BASE_URL] ?: DEFAULT_BASE_URL}")
-        lines.appendLine("OPENAI_MODEL=${prefs[KEY_MODEL] ?: DEFAULT_MODEL}")
+        prefs[KEY_INTELLIGENCE]?.takeIf { it.isNotBlank() }?.let { lines.appendLine("INTELLIGENCE_API_KEY=${shellQuote(it)}") }
+        prefs[KEY_OPENAI]?.takeIf { it.isNotBlank() }?.let { lines.appendLine("OPENAI_API_KEY=${shellQuote(it)}") }
+        lines.appendLine("OPENAI_BASE_URL=${shellQuote(prefs[KEY_BASE_URL] ?: DEFAULT_BASE_URL)}")
+        lines.appendLine("OPENAI_MODEL=${shellQuote(prefs[KEY_MODEL] ?: DEFAULT_MODEL)}")
         val envFile = File(dotsDir(context), ".env")
         envFile.parentFile?.mkdirs()
         envFile.writeText(lines.toString())
     }
+
+    /** Single-quoted for bash sourcing: the .env file is sourced, not read by Node's --env-file. */
+    private fun shellQuote(value: String) = "'" + value.replace("'", "'\\''") + "'"
 }
